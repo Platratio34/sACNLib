@@ -1,63 +1,75 @@
 package sacnReciver;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.DatagramPacket;
-import java.net.InetAddress;
-import java.net.MulticastSocket;
 import java.util.HashMap;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 
 public class Reciver {
 	
-	public static int TIMEOUT = 100 * 1000;
-	
-	MulticastSocket socket;
-	InputStream in;
+//	public static int TIMEOUT = 100 * 1000;
+//	
+//	MulticastSocket socket;Z
 	
 	private HashMap<String, SACNSrc> srcs;
 	private HashMap<Integer, SACNUni> data;
 	
+	public BlockingQueue<SACNPacket> packetQueue;
+	private ReciverRunner recRun;
+	private Thread recThread;
+	
 	public Reciver() {
 		srcs = new HashMap<String, SACNSrc>();
 		data = new HashMap<Integer, SACNUni>();
-		try {
-			socket = new MulticastSocket(5568); //5568
-			socket.setReuseAddress(true);
-			socket.joinGroup(InetAddress.getByName("239.255.0.1")); 
-			socket.setSoTimeout(100000);
-		} catch (Exception e) {
-			e.printStackTrace();
-			return;
-		}
-//		socket.close();
+		packetQueue = new LinkedBlockingDeque<SACNPacket>();
+		recRun = new ReciverRunner(this, true);
+		recThread = new Thread(recRun);
+		recThread.start();
 	}
 	
-	public void update() {
-		byte[] buff = new byte[65535];
-		DatagramPacket p = new DatagramPacket(buff, 65535);
+	public Reciver(boolean log) {
+		srcs = new HashMap<String, SACNSrc>();
+		data = new HashMap<Integer, SACNUni>();
+		packetQueue = new LinkedBlockingDeque<SACNPacket>();
+		recRun = new ReciverRunner(this, log);
+		recThread = new Thread(recRun);
+		recThread.start();
+	}
+	
+	public boolean update() {
+		SACNPacket sP = null;
+		boolean rt = false;
 		try {
-			socket.receive(p);
-			SACNPacket sP = new SACNPacket(buff);
-//			System.out.println(sP);
-			SACNSrc src;
-			if(srcs.containsKey(sP.sourceName)) {
-				src = srcs.get(sP.sourceName).setNow();
-			} else {
-				src = sP.getSrc();
-				srcs.put(src.name, src);
-			}
-			
-			if(!data.containsKey(sP.universe)) {
-				data.put(sP.universe, new SACNUni());
-			}
-			data.get(sP.universe).trySetDmx(sP.dmx, src);
-//			System.out.println(data.get(sP.universe));
-			
-		} catch (IOException e) {
+			sP = packetQueue.poll(10, TimeUnit.MILLISECONDS);
+		} catch (InterruptedException e) {
 			e.printStackTrace();
-			socket.close();
-			return;
 		}
+		while(sP != null) {
+			rt = true;
+			try {
+				SACNSrc src;
+				if(srcs.containsKey(sP.sourceName)) {
+					src = srcs.get(sP.sourceName).setNow();
+				} else {
+					src = sP.getSrc();
+					srcs.put(src.name, src);
+				}
+				
+				if(!data.containsKey(sP.universe)) {
+					data.put(sP.universe, new SACNUni());
+				}
+				data.get(sP.universe).trySetDmx(sP.dmx, src);
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+			try {
+				sP = packetQueue.poll(10, TimeUnit.MILLISECONDS);
+			} catch (InterruptedException e) {
+				sP = null;
+				e.printStackTrace();
+			}
+		}
+		return rt;
 	}
 	
 	private String printArr(byte[] arr, int m) {
@@ -80,6 +92,10 @@ public class Reciver {
 			return 0;
 		}
 		return data.get(universe).getDmx(adr);
+	}
+
+	public String printDmx(int uni) {
+		return printArr(getDmx(uni));
 	}
 	
 	public static String printArr(Object[] arr) {
@@ -104,8 +120,9 @@ public class Reciver {
 		Reciver r = new Reciver();
 		System.out.println("Listening . . .");
 		while(true) {
-			r.update();
-			System.out.println(printArr(r.getDmx(0)));
+			if(r.update()) {
+				System.out.println(printArr(r.getDmx(0)));
+			}
 		}
 	}
 
