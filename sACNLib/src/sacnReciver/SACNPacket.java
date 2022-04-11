@@ -25,6 +25,7 @@ public class SACNPacket {
 		sourceName = sourceName.substring(0,lC);
 		priority = arr[0x6C] & 0xff;
 		universe = arr[0x71] & 0xff;
+		universe++;
 		startCode = arr[0x7D] & 0xff;
 		
 		dmx = new int[512];
