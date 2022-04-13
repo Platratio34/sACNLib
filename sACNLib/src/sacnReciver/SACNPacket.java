@@ -2,24 +2,54 @@ package sacnReciver;
 
 import java.nio.ByteBuffer;
 
+/**
+ * Packet contaning the sACN data
+ * @author peter
+ *
+ */
 public class SACNPacket {
 	
+	/**
+	 * Preamble size
+	 */
 	public int preSize;
+	/**
+	 * Postamble size
+	 */
 	public int postSize;
+	/**
+	 * ACN CID
+	 */
+	public long cid;
+	/**
+	 * String name of the source
+	 */
 	public String sourceName;
+	/**
+	 * Priority of the data
+	 */
 	public int priority;
+	/**
+	 * sACN universe
+	 */
 	public int universe;
+	/**
+	 * DMX start code
+	 */
 	public int startCode;
+	/**
+	 * DMX data
+	 */
 	public int[] dmx;
 	
 	private boolean valid = false;
 	
 	public SACNPacket(byte[] arr) {
-		preSize = arr[1] + arr[0]*0x100;
-		postSize = arr[3] + arr[2]*0x100;
+		preSize = (arr[1]&0xff) + (arr[0]&0xff)*0x100;
+		postSize = (arr[3]&0xff) + (arr[2])*0x100;
 		
-		long idVector = (arr[21]&0xff) + (arr[20]&0xff)*0x100 + (arr[19]&0xff)*0x10000 + (arr[18]&0xff)*0x1000000;
-		if(idVector != 0x04) {
+		long dataType = (arr[21]&0xff) + (arr[20]&0xff)*0x100 + (arr[19]&0xff)*0x10000 + (arr[18]&0xff)*0x1000000;
+		if(dataType != 0x04) {
 			valid = false;
 			return;
 		}
@@ -29,16 +59,12 @@ public class SACNPacket {
 			valid = false;
 			return;
 		}
-		if((arr[118]&0xff) != 0xa1) {
-			valid = false;
-			return;
-		}
 		
-//		System.out.println(arr[125]&0xff);
-		if((arr[125]&0xff) != 0x00) {
-			valid = false;
-			return;
+		byte[] cidA = new byte[0x10];
+		for(int i = 0; i < cidA.length; i++) {
+			cidA[i] = arr[0x16+i];
 		}
+		cid = ByteBuffer.wrap(cidA).getLong();
 		
 		sourceName = "";
 		int lC = 0;
@@ -49,20 +75,35 @@ public class SACNPacket {
 			}
 		}
 		sourceName = sourceName.substring(0,lC);
-		priority = arr[0x6C] & 0xff;
-		universe = arr[0x71] & 0xff;
+		priority = arr[0x6C]&0xff;
+		universe = arr[0x71]&0xff;
 		universe++;
-		startCode = arr[0x7D] & 0xff;
 		
-		dmx = new int[512];
-		for(int i = 0; i < 512; i++) {
+		int dataFormat = arr[0x76]&0xff;
+		if(dataFormat != 0xa1) {
+			valid = false;
+			return;
+		}
+		
+		startCode = arr[0x7D]&0xff;
+		if(startCode != 0x00) {
+			valid = false;
+			return;
+		}
+		int dmxLength = (arr[0x7C]&0xff) + (arr[0x7B]&0xff)*0x100 - 1;
+		dmx = new int[dmxLength];
+		for(int i = 0; i < dmx.length; i++) {
 			dmx[i] = arr[0x7E+i] & 0xff;
 		}
 		valid = true;
 	}
 	
+	/**
+	 * Returns the sACN source of the the data
+	 * @return
+	 */
 	public SACNSrc getSrc() {
-		return new SACNSrc(sourceName, priority);
+		return new SACNSrc(cid, sourceName, priority);
 	}
 	
 	@Override
@@ -76,7 +117,11 @@ public class SACNPacket {
 		str += "dmx="+Reciver.printArr(dmx);
 		return str;
 	}
-
+	
+	/**
+	 * If the packet was a valid sACN (E1.31) packet with DMX data
+	 * @return
+	 */
 	public boolean valid() {
 		return valid;
 	}

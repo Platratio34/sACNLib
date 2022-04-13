@@ -6,21 +6,45 @@ import java.net.MulticastSocket;
 
 import errorHandler.ErrorLogger;
 
+/**
+ * Recives and interprests sACN packets<br>
+ * Queues the packets in a Reciver
+ * @author Peter Crall
+ *
+ */
 public class ReciverRunner implements Runnable {
 	
 	private Reciver rec;
 	
+	/**
+	 * Recive timeout time<br>
+	 * 100 seconds default
+	 */
 	public static int TIMEOUT = 100 * 1000;
+	/**
+	 * Recive port for sACN
+	 */
 	public static final int PORT = 5568;
+	/**
+	 * Recive address for sACN
+	 */
 	public static final String HOSTNAME = "239.255.0.1";
 	
-	MulticastSocket socket;
+	private MulticastSocket socket;
 	
 	private boolean runing;
+	/**
+	 * Log info messages
+	 */
 	public boolean log = true;
 	
 	private ErrorLogger logger;
 	
+	/**
+	 * Creats a new ReciverRunner
+	 * @param rec : the asscoiated Reciver
+	 * @param log : log info messages
+	 */
 	public ReciverRunner(Reciver rec, boolean log) {
 		this.log = log;
 		logger = new ErrorLogger("SACN Reciver");
@@ -84,6 +108,9 @@ public class ReciverRunner implements Runnable {
 		}
 	}
 	
+	/**
+	 * Stops the runable
+	 */
 	public void stop() {
 		runing = false;
 	}
