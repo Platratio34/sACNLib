@@ -1,5 +1,7 @@
 package sacnReciver;
 
+import java.nio.ByteBuffer;
+
 public class SACNPacket {
 	
 	public int preSize;
@@ -10,9 +12,33 @@ public class SACNPacket {
 	public int startCode;
 	public int[] dmx;
 	
+	private boolean valid = false;
+	
 	public SACNPacket(byte[] arr) {
 		preSize = arr[1] + arr[0]*0x100;
 		postSize = arr[3] + arr[2]*0x100;
+		
+		long idVector = (arr[21]&0xff) + (arr[20]&0xff)*0x100 + (arr[19]&0xff)*0x10000 + (arr[18]&0xff)*0x1000000;
+		if(idVector != 0x04) {
+			valid = false;
+			return;
+		}
+		long vector2 = (arr[43]&0xff) + (arr[42]&0xff)*0x100 + (arr[41]&0xff)*0x10000 + (arr[40]&0xff)*0x1000000;
+//		System.out.println(vector2);
+		if(vector2 != 0x02) {
+			valid = false;
+			return;
+		}
+		if((arr[118]&0xff) != 0xa1) {
+			valid = false;
+			return;
+		}
+		
+//		System.out.println(arr[125]&0xff);
+		if((arr[125]&0xff) != 0x00) {
+			valid = false;
+			return;
+		}
 		
 		sourceName = "";
 		int lC = 0;
@@ -32,6 +58,7 @@ public class SACNPacket {
 		for(int i = 0; i < 512; i++) {
 			dmx[i] = arr[0x7E+i] & 0xff;
 		}
+		valid = true;
 	}
 	
 	public SACNSrc getSrc() {
@@ -48,5 +75,9 @@ public class SACNPacket {
 		str += "universe="+universe+";";
 		str += "dmx="+Reciver.printArr(dmx);
 		return str;
+	}
+
+	public boolean valid() {
+		return valid;
 	}
 }

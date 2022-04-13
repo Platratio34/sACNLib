@@ -83,6 +83,7 @@ public class Reciver {
 	
 	public int[] getDmx(int universe) {
 		if(!data.containsKey(universe)) {
+//			System.out.println("I");
 			return new int[512];
 		}
 		return data.get(universe).getDmx();
@@ -121,7 +122,7 @@ public class Reciver {
 		System.out.println("Listening . . .");
 		while(true) {
 			if(r.update()) {
-				System.out.println(printArr(r.getDmx(0)));
+				System.out.println(printArr(r.getDmx(1)));
 			}
 		}
 	}

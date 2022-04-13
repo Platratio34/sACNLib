@@ -1,13 +1,10 @@
 package sacnReciver;
 
-import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
 
 import errorHandler.ErrorLogger;
-import errorHandler.ErrorType;
 
 public class ReciverRunner implements Runnable {
 	
@@ -16,7 +13,6 @@ public class ReciverRunner implements Runnable {
 	public static int TIMEOUT = 100 * 1000;
 	public static final int PORT = 5568;
 	public static final String HOSTNAME = "239.255.0.1";
-//	public static final String HOSTNAME = "localhost";
 	
 	MulticastSocket socket;
 	
@@ -33,7 +29,8 @@ public class ReciverRunner implements Runnable {
 			logMsg("Initializing reciver on " + HOSTNAME+":"+PORT);
 			socket = new MulticastSocket(PORT);
 			socket.setReuseAddress(true);
-			socket.joinGroup(InetAddress.getByName(HOSTNAME)); 
+//			System.out.println(InetAddress.getByName(HOSTNAME));
+			socket.joinGroup(InetAddress.getByName(HOSTNAME));
 			socket.setSoTimeout(TIMEOUT);
 			runing = true;
 		} catch (Exception e) {
@@ -57,7 +54,7 @@ public class ReciverRunner implements Runnable {
 				runing = true;
 			} catch (Exception e) {
 				socket = null;
-				runing =  false;
+				runing = false;
 				logger.logError(e);
 				e.printStackTrace();
 				return;
@@ -75,8 +72,11 @@ public class ReciverRunner implements Runnable {
 //				logMsg("L");
 				socket.receive(p);
 				SACNPacket sP = new SACNPacket(buff);
-				rec.packetQueue.put(sP);
-				logMsg(sP.toString());
+				if(sP.valid()) {
+					rec.packetQueue.put(sP);
+//					System.out.println(sP);
+				}
+//				logMsg(sP.toString());
 			} catch(Exception e) {
 				logger.logError(e);
 				e.printStackTrace();
