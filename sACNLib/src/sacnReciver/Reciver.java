@@ -92,6 +92,7 @@ public class Reciver {
 		return rt;
 	}
 	
+	@SuppressWarnings("unused")
 	private String printArr(byte[] arr, int m) {
 		String str = "[";
 		for(int i = 0; i < arr.length && i < m; i++) {
@@ -154,7 +155,6 @@ public class Reciver {
 	}
 	
 	public static void main(String[] args) {
-		// TODO Auto-generated method stub
 		Reciver r = new Reciver();
 		System.out.println("Listening . . .");
 		while(true) {

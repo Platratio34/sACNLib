@@ -48,6 +48,7 @@ public class ReciverRunner implements Runnable {
 	public ReciverRunner(Reciver rec, boolean log) {
 		this.log = log;
 		logger = new ErrorLogger("SACN Reciver");
+		logger.showOnError = log;
 		this.rec = rec;
 		try {
 			logMsg("Initializing reciver on " + HOSTNAME+":"+PORT);
