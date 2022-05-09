@@ -3,6 +3,10 @@ package sacnReciver;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
+import java.net.NetworkInterface;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
+import java.util.Enumeration;
 
 import errorHandler.ErrorLogger;
 
@@ -46,14 +50,44 @@ public class ReciverRunner implements Runnable {
 	 * @param log : log info messages
 	 */
 	public ReciverRunner(Reciver rec, boolean log) {
+	    System.out.println();
 		this.log = log;
-		logger = new ErrorLogger("SACN Reciver");
+		logger = new ErrorLogger("SACN Reciver", !log);
 		logger.showOnError = log;
 		this.rec = rec;
+		
+		NetworkInterface iFace = null;
+		try {
+	        logMsg("Full list of Network Interfaces:");
+	        for (Enumeration<NetworkInterface> en =
+	              NetworkInterface.getNetworkInterfaces(); en.hasMoreElements();) {
+
+	            NetworkInterface intf = en.nextElement();
+	            logMsg("    " + intf.getName() + " " +
+	                                                intf.getDisplayName() + "");
+
+	            for (Enumeration<InetAddress> enumIpAddr =
+	                     intf.getInetAddresses(); enumIpAddr.hasMoreElements(); ) {
+
+	                String ipAddr = enumIpAddr.nextElement().toString();
+
+	                logMsg("        " + ipAddr);
+
+	                if(ipAddr.startsWith("/10.101.50")){
+	                    iFace = intf;
+	                    logMsg("==>> Binding to this adapter...");
+	                }
+	            }
+	        }
+	    } catch (SocketException e) {
+	    	logMsg(" (error retrieving network interface list)" + "");
+	    }
+		
 		try {
 			logMsg("Initializing reciver on " + HOSTNAME+":"+PORT);
 			socket = new MulticastSocket(PORT);
 			socket.setReuseAddress(true);
+			socket.setNetworkInterface(iFace);
 //			System.out.println(InetAddress.getByName(HOSTNAME));
 			socket.joinGroup(InetAddress.getByName(HOSTNAME));
 			socket.setSoTimeout(TIMEOUT);
@@ -89,7 +123,7 @@ public class ReciverRunner implements Runnable {
 			return;
 		}
 		logMsg("Listining for sACN . . .");
-		System.out.println("Listining for sACN . . .");
+//		System.out.println("Listining for sACN . . .");
 		while(runing) {
 			byte[] buff = new byte[65535];
 			DatagramPacket p = new DatagramPacket(buff, 65535);
@@ -99,10 +133,14 @@ public class ReciverRunner implements Runnable {
 				SACNPacket sP = new SACNPacket(buff);
 				if(sP.valid()) {
 					rec.packetQueue.put(sP);
+//					logMsg(sP.toString());
 //					System.out.println(sP);
 				}
 //				logMsg(sP.toString());
 			} catch(Exception e) {
+				if(e instanceof SocketTimeoutException) {
+					continue;
+				}
 				logger.logError(e);
 				e.printStackTrace();
 			}
@@ -119,6 +157,11 @@ public class ReciverRunner implements Runnable {
 	protected void logMsg(String msg) {
 		if(log) {
 			logger.logInfo(msg);
+		}
+	}
+	protected void logError(Exception e) {
+		if(log) {
+			logger.logError(e);
 		}
 	}
 
