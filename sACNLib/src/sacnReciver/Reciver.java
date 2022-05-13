@@ -69,9 +69,11 @@ public class Reciver {
 			try {
 				SACNSrc src;
 				if(srcs.containsKey(sP.sourceName)) {
-					src = srcs.get(sP.sourceName).setNow();
+					src = srcs.get(sP.sourceName);
+					src.setNow();
 				} else {
 					src = sP.getSrc();
+					src.setNow();
 					srcs.put(src.name, src);
 				}
 				
@@ -159,7 +161,7 @@ public class Reciver {
 		System.out.println("Listening . . .");
 		while(true) {
 			if(r.update()) {
-				System.out.println(printArr(r.getDmx(1)));
+//				System.out.println(printArr(r.getDmx(1)));
 			}
 		}
 	}

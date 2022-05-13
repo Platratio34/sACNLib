@@ -27,7 +27,7 @@ public class SACNSrc {
 	/**
 	 * Source timeout time
 	 */
-	public static int TIMEOUT = 30000;
+	public static int TIMEOUT = 0 * 1000;
 	
 	/**
 	 * Creates a new SACNSrc

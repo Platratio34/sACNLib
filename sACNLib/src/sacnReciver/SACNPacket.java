@@ -75,6 +75,10 @@ public class SACNPacket {
 			}
 		}
 		sourceName = sourceName.substring(0,lC);
+		if(sourceName.contains("Processor")) {
+			valid = false;
+			return;
+		}
 		priority = arr[0x6C]&0xff;
 		universe = arr[0x71]&0xff;
 		universe++;
