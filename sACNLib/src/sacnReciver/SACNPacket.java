@@ -81,6 +81,7 @@ public class SACNPacket {
 		}
 		priority = arr[0x6C]&0xff;
 		universe = arr[0x71]&0xff;
+		universe += (arr[0x71]&0xff) * 0x100;
 		universe++;
 		
 		int dataFormat = arr[0x76]&0xff;

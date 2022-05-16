@@ -5,6 +5,9 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
+import threading.PoolRunnable;
+import threading.ThreadPool;
+
 /**
  * Reciver for SACN packet<br>
  * Uses a ReciverRunner on a sperat thread for reciving the packets<br>
@@ -25,31 +28,58 @@ public class Reciver {
 	 * Queue of packets from the ReciverRunner
 	 */
 	public BlockingQueue<SACNPacket> packetQueue;
-	private ReciverRunner recRun;
-	private Thread recThread;
+	private ReciverRunner[] recRuns;
+	private Thread[] recThreads;
+	public ThreadPool<byte[], SACNPacket> threadPool;
 	
 	/**
 	 * Creates a new Reciver
 	 */
 	public Reciver() {
-		srcs = new HashMap<String, SACNSrc>();
-		data = new HashMap<Integer, SACNUni>();
-		packetQueue = new LinkedBlockingDeque<SACNPacket>();
-		recRun = new ReciverRunner(this, true);
-		recThread = new Thread(recRun);
-		recThread.start();
+//		srcs = new HashMap<String, SACNSrc>();
+//		data = new HashMap<Integer, SACNUni>();
+//		packetQueue = new LinkedBlockingDeque<SACNPacket>();
+//		recRun = new ReciverRunner(this, true);
+//		recThread = new Thread(recRun);
+//		recThread.start();
+		start(false);
 	}
 	/**
 	 * Creates a new Reciver
 	 * @param log : if the reciver should log info messages
 	 */
 	public Reciver(boolean log) {
+//		srcs = new HashMap<String, SACNSrc>();
+//		data = new HashMap<Integer, SACNUni>();
+//		packetQueue = new LinkedBlockingDeque<SACNPacket>();
+//		recRun = new ReciverRunner(this, log);
+//		recThread = new Thread(recRun);
+//		recThread.start();
+		start(false);
+	}
+	
+	private void start(boolean log) {
 		srcs = new HashMap<String, SACNSrc>();
 		data = new HashMap<Integer, SACNUni>();
 		packetQueue = new LinkedBlockingDeque<SACNPacket>();
-		recRun = new ReciverRunner(this, log);
-		recThread = new Thread(recRun);
-		recThread.start();
+//		recRun = new ReciverRunner(this, log);
+		recRuns = new ReciverRunner[2];
+		recThreads = new Thread[2];
+		for(int i = 0; i < 2; i++) {
+			recRuns[i] = new ReciverRunner(this, log, i+1);
+			recThreads[i] = new Thread(recRuns[i]);
+			recThreads[i].start();
+		}
+//		recThread = new Thread(recRun);
+//		recThread.start();
+		threadPool = new ThreadPool<byte[], SACNPacket>(8, new PoolRunnable<byte[], SACNPacket>() {
+			@Override
+			public SACNPacket run(byte[] buff) {
+				SACNPacket p = new SACNPacket(buff);
+				if(p.valid()) return p;
+				return null;
+			}
+		});
 	}
 	
 	/**
@@ -60,12 +90,14 @@ public class Reciver {
 		SACNPacket sP = null;
 		boolean rt = false;
 		try {
-			sP = packetQueue.poll(10, TimeUnit.MILLISECONDS);
+			sP = threadPool.takeOut();
+//			sP = packetQueue.take();
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
 		while(sP != null) {
 			rt = true;
+//			System.out.println("recived");
 			try {
 				SACNSrc src;
 				if(srcs.containsKey(sP.sourceName)) {
@@ -85,7 +117,8 @@ public class Reciver {
 				e.printStackTrace();
 			}
 			try {
-				sP = packetQueue.poll(10, TimeUnit.MILLISECONDS);
+				sP = threadPool.pollOut(10, TimeUnit.MILLISECONDS);
+//				sP = packetQueue.take();
 			} catch (InterruptedException e) {
 				sP = null;
 				e.printStackTrace();

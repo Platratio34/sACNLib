@@ -7,11 +7,9 @@ import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.util.Enumeration;
-import java.util.concurrent.TimeUnit;
 
+import dataManagment.JsonObj;
 import errorHandler.ErrorLogger;
-import threading.PoolRunnable;
-import threading.ThreadPool;
 
 /**
  * Recives and interprests sACN packets<br>
@@ -36,8 +34,9 @@ public class ReciverRunner implements Runnable {
 	 * Recive address for sACN
 	 */
 	public static final String HOSTNAME = "239.255.";
+	public String host;
 	
-	private MulticastSocket[] socket;
+	private MulticastSocket socket;
 	
 	private boolean runing;
 	/**
@@ -48,22 +47,34 @@ public class ReciverRunner implements Runnable {
 	private ErrorLogger logger;
 	
 //	public BlockingQueue<byte[]> packetQueue;
-	private ThreadPool<byte[], SACNPacket> threadPool;
+	public int universe;
+	
+	private static final String CONFIG_FILENAME = "sACN_reciver.cfg";
+	private JsonObj cfg;
 	
 	/**
 	 * Creats a new ReciverRunner
 	 * @param rec : the asscoiated Reciver
 	 * @param log : log info messages
 	 */
-	public ReciverRunner(Reciver rec, boolean log) {
+	public ReciverRunner(Reciver rec, boolean log, int universe) {
+		cfg = JsonObj.parseP(CONFIG_FILENAME);
 //	    System.out.println();
+		this.universe = universe;
 		this.log = log;
 		logger = new ErrorLogger("SACN Reciver", !log);
 		logger.showOnError = log;
 		this.rec = rec;
 //		packetQueue = new LinkedBlockingDeque<byte[]>();
 //		threadPool = new Thread[4];
-		
+		JsonObj inter = null;
+		if(cfg.hasKey("interface")) {
+			inter = cfg.getKey("interface");
+		} else {
+			inter = new JsonObj();
+			cfg.setKey("interface", inter);
+			inter.setKey("ipStart", "10.101.50");
+		}
 		NetworkInterface iFace = null;
 		try {
 	        logMsg("Full list of Network Interfaces:");
@@ -80,29 +91,37 @@ public class ReciverRunner implements Runnable {
 	                String ipAddr = enumIpAddr.nextElement().toString();
 
 	                logMsg("        " + ipAddr);
-
-	                if(ipAddr.startsWith("/10.101.50")){
-	                    iFace = intf;
-	                    logMsg("==>> Binding to this adapter...");
+	                
+	                if(inter.hasKey("ipStart")) {
+		                if(ipAddr.startsWith( "/"+inter.getKey("ipStart").string() )){
+		                    iFace = intf;
+		                    logMsg("==>> Binding to this adapter...");
+		                }
+	                } else if(inter.hasKey("name")) {
+	                	if(intf.getName().equals( inter.getKey("name").string() )) {
+	                		iFace = intf;
+		                    logMsg("==>> Binding to this adapter...");
+	                	}
 	                }
 	            }
 	        }
 	    } catch (SocketException e) {
 	    	logMsg(" (error retrieving network interface list)" + e);
 	    }
-		
+		int u = universe - 1;
+		host = HOSTNAME + (u/255) + "." + (u%255);
 		try {
-			logMsg("Initializing reciver on " + HOSTNAME+"?.?:"+PORT);
-			socket = new MulticastSocket[2];
-			for(int i = 0; i < socket.length; i++) {
-				socket[i] = new MulticastSocket(PORT);
-				socket[i].setReuseAddress(true);
-				socket[i].setNetworkInterface(iFace);
+			logMsg("Initializing reciver on " + host+":"+PORT);
+//			socket = new MulticastSocket[2];
+//			for(int i = 0; i < socket.length; i++) {
+				socket = new MulticastSocket(PORT);
+				socket.setReuseAddress(true);
+				socket.setNetworkInterface(iFace);
 	//			System.out.println(InetAddress.getByName(HOSTNAME));
-				socket[i].joinGroup(InetAddress.getByName(HOSTNAME+"0."+(i+1)));
+				socket.joinGroup(InetAddress.getByName(host));
 //				System.out.println(HOSTNAME+"0."+(i+1));
-				socket[i].setSoTimeout(TIMEOUT);
-			}
+				socket.setSoTimeout(TIMEOUT);
+//			}
 			runing = true;
 		} catch (Exception e) {
 			socket = null;
@@ -111,26 +130,20 @@ public class ReciverRunner implements Runnable {
 			e.printStackTrace();
 			return;
 		}
-		threadPool = new ThreadPool<byte[], SACNPacket>(4, new PoolRunnable<byte[], SACNPacket>() {
-			@Override
-			public SACNPacket run(byte[] buff) {
-				return new SACNPacket(buff);
-			}
-		});
 	}
 
 	@Override
 	public void run() {
 		if(socket == null) {
 			try {
-				logMsg("Initializing reciver on " + HOSTNAME+"?.?:"+PORT);
-				socket = new MulticastSocket[2];
-				for(int i = 0; i < socket.length; i++) {
-					socket[i] = new MulticastSocket(PORT);
-					socket[i].setReuseAddress(true);
-					socket[i].joinGroup(InetAddress.getByName(HOSTNAME+"0."+(i+1))); 
-					socket[i].setSoTimeout(TIMEOUT);
-				}
+				logMsg("Initializing reciver on " + host+":"+PORT);
+//				socket = new MulticastSocket[2];
+//				for(int i = 0; i < socket.length; i++) {
+					socket = new MulticastSocket(PORT);
+					socket.setReuseAddress(true);
+					socket.joinGroup(InetAddress.getByName(host)); 
+					socket.setSoTimeout(TIMEOUT);
+//				}
 				runing = true;
 			} catch (Exception e) {
 				socket = null;
@@ -146,32 +159,36 @@ public class ReciverRunner implements Runnable {
 		logMsg("Listining for sACN . . .");
 		while(runing) {
 			try {
-				for(int i = 0; i < socket.length; i++) {
+//				for(int i = 0; i < socket.length; i++) {
 					byte[] buff = new byte[65535];
 					DatagramPacket p = new DatagramPacket(buff, 65535);
-					socket[i].receive(p);
-					if(i == 1) {
-						buff[0x71] = 0x01;
+					socket.receive(p);
+					if(universe == 2) {
+//						logMsg("a");
+						int u = universe - 1;
+						buff[0x71] = (byte)(u%0x100);
+						buff[0x72] = (byte)(u/0x100);
 					}
-					threadPool.putIn(buff);
-				}
+					rec.threadPool.putIn(buff);
+//				}
 			} catch(Exception e) {
-				if(e instanceof SocketTimeoutException) {
-					continue;
-				}
-				logger.logError(e);
-				e.printStackTrace();
-			}
-			while(threadPool.hasOut()) {
-				try {
-					SACNPacket p = threadPool.pollOut(10, TimeUnit.MILLISECONDS);
-					if(p == null) continue;
-					if(!p.valid()) continue;
-					rec.packetQueue.put(p);
-				} catch(Exception e) {
+				if(!(e instanceof SocketTimeoutException)) {
+					logger.logError(e);
 					e.printStackTrace();
 				}
 			}
+//			while(threadPool.hasOut()) {
+//				try {
+//					SACNPacket p = threadPool.pollOut(10, TimeUnit.MILLISECONDS);
+//					if(p == null) continue;
+////					logMsg("not null");
+//					if(!p.valid()) continue;
+//					rec.packetQueue.put(p);
+////					logMsg("Pased " + p);
+//				} catch(Exception e) {
+//					e.printStackTrace();
+//				}
+//			}
 		}
 	}
 	
