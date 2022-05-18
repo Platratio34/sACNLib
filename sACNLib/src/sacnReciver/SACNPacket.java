@@ -81,7 +81,7 @@ public class SACNPacket {
 		}
 		priority = arr[0x6C]&0xff;
 		universe = arr[0x71]&0xff;
-		universe += (arr[0x71]&0xff) * 0x100;
+		universe += (arr[0x72]&0xff) * 0x100;
 		universe++;
 		
 		int dataFormat = arr[0x76]&0xff;
@@ -91,10 +91,10 @@ public class SACNPacket {
 		}
 		
 		startCode = arr[0x7D]&0xff;
-		if(startCode != 0x00) {
-			valid = false;
-			return;
-		}
+//		if(startCode != 0x00) {
+//			valid = false;
+//			return;
+//		}
 		int dmxLength = (arr[0x7C]&0xff) + (arr[0x7B]&0xff)*0x100 - 1;
 		dmx = new int[dmxLength];
 		for(int i = 0; i < dmx.length; i++) {
@@ -121,6 +121,16 @@ public class SACNPacket {
 		str += "universe="+universe+";";
 		str += "dmx="+Reciver.printArr(dmx);
 		return str;
+	}
+	public String dispPacket() {
+		String str = "{";
+		str += "sourceName=\""+sourceName+"\", ";
+		str += "CID="+cid+", ";
+		str += "priority="+priority+", ";
+		str += "universe="+universe+", ";
+		str += "dmxStartCode="+startCode+", ";
+		str += "dmxSize="+dmx.length;
+		return str + "}";
 	}
 	
 	/**

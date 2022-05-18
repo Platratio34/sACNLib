@@ -32,6 +32,8 @@ public class Reciver {
 	private Thread[] recThreads;
 	public ThreadPool<byte[], SACNPacket> threadPool;
 	
+	public boolean running = true;
+	
 	/**
 	 * Creates a new Reciver
 	 */
@@ -76,7 +78,10 @@ public class Reciver {
 			@Override
 			public SACNPacket run(byte[] buff) {
 				SACNPacket p = new SACNPacket(buff);
-				if(p.valid()) return p;
+				if(p.valid()) {
+//					System.out.println(p.universe);
+					return p;
+				}
 				return null;
 			}
 		});
@@ -95,30 +100,30 @@ public class Reciver {
 		} catch (InterruptedException e) {
 			e.printStackTrace();
 		}
-		while(sP != null) {
+		while(sP != null && running) {
 			rt = true;
-//			System.out.println("recived");
-			try {
-				SACNSrc src;
-				if(srcs.containsKey(sP.sourceName)) {
-					src = srcs.get(sP.sourceName);
-					src.setNow();
-				} else {
-					src = sP.getSrc();
-					src.setNow();
-					srcs.put(src.name, src);
+			if(sP.startCode == 0x00) {
+				try {
+					SACNSrc src;
+					if(srcs.containsKey(sP.sourceName)) {
+						src = srcs.get(sP.sourceName);
+						src.setNow();
+					} else {
+						src = sP.getSrc();
+						src.setNow();
+						srcs.put(src.name, src);
+					}
+					
+					if(!data.containsKey(sP.universe)) {
+						data.put(sP.universe, new SACNUni());
+					}
+					data.get(sP.universe).trySetDmx(sP.dmx, src);
+				} catch (Exception e) {
+					e.printStackTrace();
 				}
-				
-				if(!data.containsKey(sP.universe)) {
-					data.put(sP.universe, new SACNUni());
-				}
-				data.get(sP.universe).trySetDmx(sP.dmx, src);
-			} catch (Exception e) {
-				e.printStackTrace();
 			}
 			try {
 				sP = threadPool.pollOut(10, TimeUnit.MILLISECONDS);
-//				sP = packetQueue.take();
 			} catch (InterruptedException e) {
 				sP = null;
 				e.printStackTrace();
@@ -189,6 +194,14 @@ public class Reciver {
 		return str + "]";
 	}
 	
+	public void stop() {
+		running = false;
+		threadPool.stopAllThreads();
+		for(int i = 0; i < recRuns.length; i++) {
+			recRuns[i].stop();
+		}
+	}
+			
 	public static void main(String[] args) {
 		Reciver r = new Reciver();
 		System.out.println("Listening . . .");

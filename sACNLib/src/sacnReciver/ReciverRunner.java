@@ -108,7 +108,7 @@ public class ReciverRunner implements Runnable {
 	    } catch (SocketException e) {
 	    	logMsg(" (error retrieving network interface list)" + e);
 	    }
-		int u = universe - 1;
+		int u = universe - 0;
 		host = HOSTNAME + (u/255) + "." + (u%255);
 		try {
 			logMsg("Initializing reciver on " + host+":"+PORT);
@@ -163,12 +163,16 @@ public class ReciverRunner implements Runnable {
 					byte[] buff = new byte[65535];
 					DatagramPacket p = new DatagramPacket(buff, 65535);
 					socket.receive(p);
-					if(universe == 2) {
+//					System.out.print(buff[0x71]);
+//					if(universe == 2) {
 //						logMsg("a");
 						int u = universe - 1;
+//						buff[0x71] = 0x01;
+//						System.out.println(universe);
 						buff[0x71] = (byte)(u%0x100);
 						buff[0x72] = (byte)(u/0x100);
-					}
+//					}
+//					System.out.println(" - " + buff[0x71]);
 					rec.threadPool.putIn(buff);
 //				}
 			} catch(Exception e) {
@@ -203,6 +207,7 @@ public class ReciverRunner implements Runnable {
 		if(log) {
 			logger.logInfo(msg);
 		}
+//		System.out.println(msg);
 	}
 	protected void logError(Exception e) {
 		if(log) {
