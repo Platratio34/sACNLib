@@ -108,7 +108,9 @@ public class SACNPacket {
 	 * @return
 	 */
 	public SACNSrc getSrc() {
-		return new SACNSrc(cid, sourceName, priority);
+		SACNSrc src = new SACNSrc(cid, sourceName, priority);
+		src.setChPrio(this);
+		return src;
 	}
 	
 	@Override

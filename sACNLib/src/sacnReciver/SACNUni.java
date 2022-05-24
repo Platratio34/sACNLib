@@ -16,12 +16,15 @@ public class SACNUni {
 	 */
 	public SACNSrc[] src;
 	
+	public int uni;
+	
 	/**
 	 * Creates a new SACNUni
 	 */
-	public SACNUni() {
+	public SACNUni(int uni) {
 		dmx = new int[512];
 		src = new SACNSrc[512];
+		this.uni = uni;
 	}
 	
 	/**
@@ -34,24 +37,24 @@ public class SACNUni {
 	public boolean trySetDmx(int adr, int data, SACNSrc source) {
 		if(src[adr] == null) {
 			dmx[adr] = data;
-//			src[adr] = source;
+			src[adr] = source;
 			return true;
 		}
 		if(src[adr].equals(source)) {
 			dmx[adr] = data;
 			return true;
 		}
-		if(src[adr].isHigher(source)) {
+		if(src[adr].isHigher(source, uni, adr)) {
 			return false;
 		}
-		if(source.isHigher(src[adr])) {
+		if(source.isHigher(src[adr], uni, adr)) {
 			dmx[adr] = data;
-//			src[adr] = source;
+			src[adr] = source;
 			return true;
 		}
 		if(dmx[adr] < data) {
 			dmx[adr] = data;
-//			src[adr] = source;
+			src[adr] = source;
 		}
 		return true;
 	}
@@ -66,6 +69,12 @@ public class SACNUni {
 			trySetDmx(i, data[i], source);
 		}
 		return true;
+	}
+	
+	public boolean trySetDmx(SACNPacket packet) {
+		if(packet.startCode == 0x00)
+			return trySetDmx(packet.dmx, packet.getSrc());
+		return false;
 	}
 	
 	/**

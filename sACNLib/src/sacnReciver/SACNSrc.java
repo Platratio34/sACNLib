@@ -1,5 +1,7 @@
 package sacnReciver;
 
+import java.util.HashMap;
+
 /**
  * Source of sACN Data
  * @author Peter Crall
@@ -29,6 +31,8 @@ public class SACNSrc {
 	 */
 	public static int TIMEOUT = 0 * 1000;
 	
+	protected HashMap<Integer, int[]> chPrio;
+	
 	/**
 	 * Creates a new SACNSrc
 	 * @param cid : ACN CID of source
@@ -40,6 +44,7 @@ public class SACNSrc {
 		this.prio = prio;
 		this.name = name;
 		lTime = System.currentTimeMillis();
+		chPrio = new HashMap<Integer, int[]>();
 	}
 	
 	/**
@@ -47,15 +52,30 @@ public class SACNSrc {
 	 * @param o : the source to check against
 	 * @return If this source has a higher priority, and has not timed out
 	 */
-	public boolean isHigher(SACNSrc o) {
-		if(o.prio > prio) {
-			return false;
+	public boolean isHigher(SACNSrc o, int uni, int adr) {
+		if(chPrio.containsKey(uni)) {
+			if(o.chPrio.containsKey(uni)) {
+				if(o.chPrio.get(uni)[adr] > chPrio.get(uni)[adr]) return false;
+			} else {
+				if(o.prio > chPrio.get(uni)[adr]) return false;
+			}
+		} else {
+			if(o.chPrio.containsKey(uni)) {
+				if(o.chPrio.get(uni)[adr] > prio) return false;
+			} else {
+				if(o.prio > prio) return false;
+			}
 		}
 		long cTime = System.currentTimeMillis();
 		if(lTime + TIMEOUT < cTime) {
 			return false;
 		}
 		return true;
+	}
+	
+	public void setChPrio(SACNPacket packet) {
+		if(packet.startCode != 0xDD) return;
+		chPrio.put(packet.universe, packet.dmx); 
 	}
 	
 	/**

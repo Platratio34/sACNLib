@@ -115,9 +115,24 @@ public class Reciver {
 					}
 					
 					if(!data.containsKey(sP.universe)) {
-						data.put(sP.universe, new SACNUni());
+						data.put(sP.universe, new SACNUni(sP.universe));
 					}
 					data.get(sP.universe).trySetDmx(sP.dmx, src);
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+			} else {
+				try {
+					SACNSrc src;
+					if(srcs.containsKey(sP.sourceName)) {
+						src = srcs.get(sP.sourceName);
+						src.setNow();
+						src.setChPrio(sP);
+					} else {
+						src = sP.getSrc();
+						src.setNow();
+						srcs.put(src.name, src);
+					}
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
